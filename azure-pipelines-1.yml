@@ -20,19 +20,16 @@ stages:
   - job: build
     displayName: 'Build Docker Image'
     steps:
-    # Docker@2 Build with BuildKit (recommended approach)
-    - task: Docker@2
+    # Enable BuildKit in the build environment
+    - script: |
+        export DOCKER_BUILDKIT=1
+        docker buildx create --use
+      displayName: 'Enable Docker BuildKit and create buildx builder'
+
+    # Build Docker image using buildx
+    - script: |
+        docker buildx build --file **/Dockerfile --tag perseverance-project:backend_$(Build.BuildId) --build-arg BUILDKIT_INLINE_CACHE=1 --push .
       displayName: 'Build Docker Image with BuildKit'
-      inputs:
-        containerRegistry: 'perseverance'
-        repository: 'perseverance-project'
-        command: 'build'
-        Dockerfile: '**/Dockerfile'
-        tags: |
-          backend_$(Build.BuildId)
-        buildArguments: |
-          --build-arg BUILDKIT_INLINE_CACHE=1
-        additionalOptions: '--buildx'
 
 - stage: PushDockerImage
   displayName: 'Push Docker Image'
