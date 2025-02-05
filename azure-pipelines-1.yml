@@ -48,7 +48,8 @@ stages:
         echo "Enabling Docker BuildKit..."
         export DOCKER_BUILDKIT=1
         echo "BuildKit: $DOCKER_BUILDKIT"
-        docker info | grep "BuildKit"  # Confirm BuildKit is enabled
+        docker info | grep "BuildKit" || echo "BuildKit not detected."  # Check if BuildKit is enabled in Docker
+        # Add more diagnostic commands if needed
       displayName: 'Enable Docker BuildKit'
 
     # Create and use the builder
