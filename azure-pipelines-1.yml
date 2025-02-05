@@ -30,7 +30,7 @@ stages:
 
     # Check if docker buildx is available
     - script: |
-        echo "Checking if buildx is available..."
+        echo "Checking if Buildx is available..."
         if ! docker buildx version > /dev/null 2>&1; then
           echo "Docker Buildx is not installed, installing..."
           mkdir -p ~/.docker/cli-plugins
@@ -49,8 +49,8 @@ stages:
         export DOCKER_BUILDKIT=1
         echo "BuildKit: $DOCKER_BUILDKIT"
         docker info | grep "BuildKit" || echo "BuildKit not detected."  # Check if BuildKit is enabled in Docker
-        # Add more diagnostic commands if needed
-      displayName: 'Enable Docker BuildKit'
+        docker buildx ls  # List available builders to confirm buildx setup
+      displayName: 'Enable Docker BuildKit and List Builders'
 
     # Create and use the builder
     - script: |
@@ -62,58 +62,5 @@ stages:
     # Build Docker image using buildx
     - script: |
         echo "Building Docker image with buildx..."
-        docker buildx build --file Dockerfile --tag perseverance-project:backend_$(Build.BuildId) --build-arg BUILDKIT_INLINE_CACHE=1 --push .
+        docker buildx build --file Dockerfile --tag perseverance-project:backend_$(Build.BuildId) --build-arg BUILDKIT_INLINE_CACHE=1 --push . || (echo "Docker build failed" && exit 1)
       displayName: 'Build Docker Image with BuildKit'
-
-- stage: PushDockerImage
-  displayName: 'Push Docker Image'
-  dependsOn: BuildDockerImage
-  jobs:
-  - job: push
-    displayName: 'Push Docker Image to ACR'
-    steps:
-    - task: Docker@2
-      displayName: 'Push Docker Image'
-      inputs:
-        containerRegistry: 'perseverance'
-        repository: 'perseverance-project'
-        command: 'push'
-        tags: |
-          $(version)
-
-- stage: CleanupDockerImages
-  displayName: 'Clean Up Docker Images'
-  dependsOn: PushDockerImage
-  jobs:
-  - job: cleanup
-    displayName: 'Clean Up Docker Images'
-    steps:
-    - script: |
-        images=$(docker images -q)
-        if [ -n "$images" ]; then
-          docker rmi -f $images
-        else
-          echo "No images to clean up."
-        fi
-      displayName: 'Remove all Docker images'
-
-- stage: ModifyAndPublishYaml
-  displayName: 'Modify and Publish Kubernetes Manifest'
-  dependsOn: CleanupDockerImages
-  jobs:
-  - job: modifyAndPublish
-    displayName: 'Modify Kubernetes Manifest and Publish'
-    steps:
-    - script: |
-        echo "Replacing VERSION with $(version) in backend.yml"
-        sed -i '' "s|VERSION|$(version)|g" backend.yml  # For macOS agents, use '-i '''
-        cat backend.yml
-        cp backend.yml $(Build.ArtifactStagingDirectory)/ 
-      displayName: 'Modify Kubernetes Manifest'
-
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Modified Kubernetes Manifest'
-      inputs:
-        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'k8s-manifest'
-        publishLocation: 'Container'
