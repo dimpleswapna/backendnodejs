@@ -12,6 +12,7 @@ stages:
     displayName: 'Checkout Code'
     steps:
     - checkout: self
+      clean: true
 
 - stage: BuildDockerImage
   displayName: 'Build Docker Image'
@@ -24,11 +25,12 @@ stages:
     - script: |
         export DOCKER_BUILDKIT=1
         docker buildx create --use
+        docker buildx ls  # List available builders to confirm
       displayName: 'Enable Docker BuildKit and create buildx builder'
 
     # Build Docker image using buildx
     - script: |
-        docker buildx build --file **/Dockerfile --tag perseverance-project:backend_$(Build.BuildId) --build-arg BUILDKIT_INLINE_CACHE=1 --push .
+        docker buildx build --file Dockerfile --tag perseverance-project:backend_$(Build.BuildId) --build-arg BUILDKIT_INLINE_CACHE=1 --push .
       displayName: 'Build Docker Image with BuildKit'
 
 - stage: PushDockerImage
@@ -55,7 +57,12 @@ stages:
     displayName: 'Clean Up Docker Images'
     steps:
     - script: |
-        docker rmi -f $(docker images -q)
+        images=$(docker images -q)
+        if [ -n "$images" ]; then
+          docker rmi -f $images
+        else
+          echo "No images to clean up."
+        fi
       displayName: 'Remove all Docker images'
 
 - stage: ModifyAndPublishYaml
@@ -67,7 +74,7 @@ stages:
     steps:
     - script: |
         echo "Replacing VERSION with $(version) in backend.yml"
-        sed -i "s|VERSION|$(version)|g" backend.yml
+        sed -i '' "s|VERSION|$(version)|g" backend.yml  # For macOS agents, use '-i '''
         cat backend.yml
         cp backend.yml $(Build.ArtifactStagingDirectory)/ 
       displayName: 'Modify Kubernetes Manifest'
