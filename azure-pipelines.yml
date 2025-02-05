@@ -1,7 +1,6 @@
-
 pool:
   name: 'AjentPool'
-  
+
 variables:
   version: 'backend_$(Build.BuildId)'
 
@@ -40,13 +39,14 @@ stages:
     displayName: 'Push Docker Image to ACR'
     steps:
     - task: Docker@2
-      displayName: 'Push Docker Image' 
+      displayName: 'Push Docker Image'
       inputs:
         containerRegistry: 'perseverance'
         repository: 'perseverance-project'
         command: 'push'
         tags: |
           $(version)
+
 - stage: CleanupDockerImages
   displayName: 'Clean Up Docker Images'
   dependsOn: PushDockerImage
@@ -55,8 +55,25 @@ stages:
     displayName: 'Clean Up Docker Images'
     steps:
     - script: |
-        docker rmi -f $(docker images -aq)
-      displayName: 'Remove all Docker images'
+        # List all running containers and stop them
+        running_containers=$(docker ps -q)
+        if [ ! -z "$running_containers" ]; then
+          echo "Stopping running containers..."
+          docker stop $running_containers
+          docker rm $running_containers
+        else
+          echo "No running containers found."
+        fi
+        
+        # List all images and remove them if they exist
+        images=$(docker images -aq)
+        if [ ! -z "$images" ]; then
+          echo "Removing Docker images..."
+          docker rmi -f $images || true  # || true to prevent failure if images don't exist
+        else
+          echo "No Docker images to remove."
+        fi
+      displayName: 'Stop Containers and Remove Docker Images'
 
 - stage: ModifyAndPublishYaml
   displayName: 'Modify and Publish Kubernetes Manifest'
@@ -69,12 +86,12 @@ stages:
         echo "Replacing VERSION with $(version) in backend.yml"
         sed -i "s|VERSION|$(version)|g" backend.yml
         cat backend.yml
-        cp backend.yml $(Build.ArtifactStagingDirectory)/
+        cp backend.yml $(Build.ArtifactStagingDirectory)/ 
       displayName: 'Modify Kubernetes Manifest'
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Modified Kubernetes Manifest'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'kubeernetees-manifest'
+        ArtifactName: 'kubernetes-manifest'  # Corrected the typo here
         publishLocation: 'Container'
