@@ -76,5 +76,5 @@ stages:
       displayName: 'Publish Modified Kubernetes Manifest'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-        ArtifactName: 'k8s-manifest'
+        ArtifactName: 'kubeernetees-manifest'
         publishLocation: 'Container'
