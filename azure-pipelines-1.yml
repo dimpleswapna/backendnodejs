@@ -23,9 +23,15 @@ stages:
     steps:
     # Check Docker version and buildx availability
     - script: |
+        echo "Checking Docker version"
+        which docker
         docker --version
-        docker buildx version  # Confirm buildx installation
-      displayName: 'Check Docker Version and Buildx Availability'
+      displayName: 'Check Docker Version'
+
+    # Check if docker buildx is available
+    - script: |
+        docker buildx version
+      displayName: 'Check Buildx Availability'
 
     # Install Docker Buildx if not available
     - script: |
