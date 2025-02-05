@@ -30,16 +30,17 @@ stages:
 
     # Check if docker buildx is available
     - script: |
-        docker buildx version
-      displayName: 'Check Buildx Availability'
-
-    # Install Docker Buildx if not available
-    - script: |
-        mkdir -p ~/.docker/cli-plugins
-        curl -sSL https://github.com/docker/buildx/releases/download/v0.9.1/buildx-v0.9.1.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
-        chmod +x ~/.docker/cli-plugins/docker-buildx
-        docker buildx version  # Confirm installation
-      displayName: 'Install Docker Buildx'
+        if ! docker buildx version > /dev/null 2>&1; then
+          echo "Docker Buildx is not installed, installing..."
+          mkdir -p ~/.docker/cli-plugins
+          curl -sSL https://github.com/docker/buildx/releases/download/v0.9.1/buildx-v0.9.1.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
+          chmod +x ~/.docker/cli-plugins/docker-buildx
+          docker buildx version  # Confirm installation
+        else
+          echo "Docker Buildx is already installed"
+          docker buildx version  # Confirm installation
+        fi
+      displayName: 'Check and Install Docker Buildx'
 
     # Enable BuildKit in the build environment
     - script: |
