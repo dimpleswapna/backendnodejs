@@ -1,6 +1,6 @@
 pool:
   name: 'AjentPool'
-  
+
 variables:
   version: 'backend_$(Build.BuildId)'
 
@@ -20,8 +20,9 @@ stages:
   - job: build
     displayName: 'Build Docker Image'
     steps:
+    # Docker@2 Build with BuildKit (recommended approach)
     - task: Docker@2
-      displayName: 'Build Docker Image'
+      displayName: 'Build Docker Image with BuildKit'
       inputs:
         containerRegistry: 'perseverance'
         repository: 'perseverance-project'
@@ -29,7 +30,9 @@ stages:
         Dockerfile: '**/Dockerfile'
         tags: |
           backend_$(Build.BuildId)
-      name: buildImage
+        buildArguments: |
+          --build-arg BUILDKIT_INLINE_CACHE=1
+        additionalOptions: '--buildx'
 
 - stage: PushDockerImage
   displayName: 'Push Docker Image'
@@ -39,13 +42,14 @@ stages:
     displayName: 'Push Docker Image to ACR'
     steps:
     - task: Docker@2
-      displayName: 'Push Docker Image' 
+      displayName: 'Push Docker Image'
       inputs:
         containerRegistry: 'perseverance'
         repository: 'perseverance-project'
         command: 'push'
         tags: |
           $(version)
+
 - stage: CleanupDockerImages
   displayName: 'Clean Up Docker Images'
   dependsOn: PushDockerImage
@@ -54,7 +58,7 @@ stages:
     displayName: 'Clean Up Docker Images'
     steps:
     - script: |
-        docker rmi -f $(docker images -aq)
+        docker rmi -f $(docker images -q)
       displayName: 'Remove all Docker images'
 
 - stage: ModifyAndPublishYaml
@@ -68,7 +72,7 @@ stages:
         echo "Replacing VERSION with $(version) in backend.yml"
         sed -i "s|VERSION|$(version)|g" backend.yml
         cat backend.yml
-        cp backend.yml $(Build.ArtifactStagingDirectory)/
+        cp backend.yml $(Build.ArtifactStagingDirectory)/ 
       displayName: 'Modify Kubernetes Manifest'
 
     - task: PublishBuildArtifacts@1
