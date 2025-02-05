@@ -52,6 +52,12 @@ stages:
         docker buildx ls  # List available builders to confirm buildx setup
       displayName: 'Enable Docker BuildKit and List Builders'
 
+    # Fix permissions for Docker socket (as root)
+    - script: |
+        echo "Granting permissions to Docker socket..."
+        sudo chmod 666 /var/run/docker.sock
+      displayName: 'Grant Docker Socket Permissions'
+
     # Create and use the builder
     - script: |
         echo "Creating and using Docker Buildx builder..."
