@@ -30,6 +30,7 @@ stages:
 
     # Check if docker buildx is available
     - script: |
+        echo "Checking if buildx is available..."
         if ! docker buildx version > /dev/null 2>&1; then
           echo "Docker Buildx is not installed, installing..."
           mkdir -p ~/.docker/cli-plugins
@@ -42,15 +43,24 @@ stages:
         fi
       displayName: 'Check and Install Docker Buildx'
 
-    # Enable BuildKit in the build environment
+    # Ensure BuildKit is enabled in the build environment
     - script: |
+        echo "Enabling Docker BuildKit..."
         export DOCKER_BUILDKIT=1
+        echo "BuildKit: $DOCKER_BUILDKIT"
+        docker info | grep "BuildKit"  # Confirm BuildKit is enabled
+      displayName: 'Enable Docker BuildKit'
+
+    # Create and use the builder
+    - script: |
+        echo "Creating and using Docker Buildx builder..."
         docker buildx create --use
-        docker buildx ls  # List available builders to confirm
-      displayName: 'Enable Docker BuildKit and create buildx builder'
+        docker buildx ls  # List available builders
+      displayName: 'Create and Use Docker Buildx Builder'
 
     # Build Docker image using buildx
     - script: |
+        echo "Building Docker image with buildx..."
         docker buildx build --file Dockerfile --tag perseverance-project:backend_$(Build.BuildId) --build-arg BUILDKIT_INLINE_CACHE=1 --push .
       displayName: 'Build Docker Image with BuildKit'
 
