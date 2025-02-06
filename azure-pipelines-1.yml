@@ -1,6 +1,6 @@
 pool:
   name: 'AjentPool'
-
+  
 variables:
   version: 'backend_$(Build.BuildId)'
 
@@ -12,7 +12,6 @@ stages:
     displayName: 'Checkout Code'
     steps:
     - checkout: self
-      clean: true
 
 - stage: BuildDockerImage
   displayName: 'Build Docker Image'
@@ -21,46 +20,76 @@ stages:
   - job: build
     displayName: 'Build Docker Image'
     steps:
-    # Check Docker version and buildx availability
-    - script: |
-        echo "Checking Docker version"
-        which docker
-        docker --version
-      displayName: 'Check Docker Version'
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        containerRegistry: 'perseverance'
+        repository: 'perseverance-project'
+        command: 'build'
+        Dockerfile: '**/Dockerfile'
+        tags: |
+          backend_$(Build.BuildId)
+      name: buildImage
 
-    # Check if docker buildx is available
+- stage: PushDockerImage
+  displayName: 'Push Docker Image'
+  dependsOn: BuildDockerImage
+  jobs:
+  - job: push
+    displayName: 'Push Docker Image to ACR'
+    steps:
+    - task: Docker@2
+      displayName: 'Push Docker Image' 
+      inputs:
+        containerRegistry: 'perseverance'
+        repository: 'perseverance-project'
+        command: 'push'
+        tags: |
+          $(version)
+
+- stage: CleanupDockerImages
+  displayName: 'Clean Up Docker Images'
+  dependsOn: PushDockerImage
+  jobs:
+  - job: cleanup
+    displayName: 'Clean Up Docker Images'
+    steps:
     - script: |
-        echo "Checking if Buildx is available..."
-        if ! docker buildx version > /dev/null 2>&1; then
-          echo "Docker Buildx is not installed, installing..."
-          mkdir -p ~/.docker/cli-plugins
-          curl -sSL https://github.com/docker/buildx/releases/download/v0.9.1/buildx-v0.9.1.linux-amd64 -o ~/.docker/cli-plugins/docker-buildx
-          chmod +x ~/.docker/cli-plugins/docker-buildx
-          docker buildx version  # Confirm installation
+        running_containers=$(docker ps -q)
+        if [ ! -z "$running_containers" ]; then
+          echo "Stopping running containers..."
+          docker stop $running_containers
+          docker rm $running_containers
         else
-          echo "Docker Buildx is already installed"
-          docker buildx version  # Confirm installation
+          echo "No running containers found."
         fi
-      displayName: 'Check and Install Docker Buildx'
 
-    # Ensure BuildKit is enabled in the build environment
-    - script: |
-        echo "Enabling Docker BuildKit..."
-        export DOCKER_BUILDKIT=1
-        echo "BuildKit: $DOCKER_BUILDKIT"
-        docker info | grep "BuildKit" || echo "BuildKit not detected."  # Check if BuildKit is enabled in Docker
-        docker buildx ls  # List available builders to confirm buildx setup
-      displayName: 'Enable Docker BuildKit and List Builders'
+        images=$(docker images -aq)
+        if [ ! -z "$images" ]; then
+          echo "Removing Docker images..."
+          docker rmi -f $images || true
+        else
+          echo "No Docker images to remove."
+        fi
+      displayName: 'Stop Containers and Remove Docker Images'
 
-    # Create and use the builder
+- stage: ModifyAndPublishYaml
+  displayName: 'Modify and Publish Kubernetes Manifest'
+  dependsOn: CleanupDockerImages
+  jobs:
+  - job: modifyAndPublish
+    displayName: 'Modify Kubernetes Manifest and Publish'
+    steps:
     - script: |
-        echo "Creating and using Docker Buildx builder..."
-        docker buildx create --use
-        docker buildx ls  # List available builders
-      displayName: 'Create and Use Docker Buildx Builder'
+        echo "Replacing VERSION with $(version) in backend.yml"
+        sed -i "s|VERSION|$(version)|g" backend.yml
+        cat backend.yml
+        cp backend.yml $(Build.ArtifactStagingDirectory)/
+      displayName: 'Modify Kubernetes Manifest'
 
-    # Build Docker image using buildx
-    - script: |
-        echo "Building Docker image with buildx..."
-        docker buildx build --file Dockerfile --tag perseverance-project:backend_$(Build.BuildId) --build-arg BUILDKIT_INLINE_CACHE=1 --push . || (echo "Docker build failed" && exit 1)
-      displayName: 'Build Docker Image with BuildKit'
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Modified Kubernetes Manifest'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'k8s-manifest'
+        publishLocation: 'Container'
