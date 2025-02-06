@@ -35,7 +35,7 @@ spec:
         ports:
         - containerPort: 3100
       imagePullSecrets:
-      - name: acr-creds
+      - name: registry-creds
 ---
 apiVersion: v1
 kind: Service
