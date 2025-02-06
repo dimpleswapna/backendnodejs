@@ -6,7 +6,7 @@ metadata:
   labels:
     role: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       role: backend
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: backend-api
-        image: perseverance01.azurecr.io/perseverance-project:VERSION
+        image: perseverance.azurecr.io/perseverance-project:VERSION
         imagePullPolicy: Always
         env:
           - name: DB_CONN_STR
