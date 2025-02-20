@@ -8,5 +8,5 @@ sudo chmod 777 /var/run/docker.sock
 kubectl create secret docker-registry registry-creds \
   --docker-server=perseverance.azurecr.io \
   --docker-username=perseverance \
-  --docker-password=0dHmAcqbxApK+0YYVI/u1qAGAkm/40b8yk+pjKF1QY+ACRDRpMaB\
+  --docker-password=6FTnuqSQFp1sRysyIilNtR+Cc5EAe2hXFewJL1OK5r+ACRAxTc40\
 
