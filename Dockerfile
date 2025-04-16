@@ -1,17 +1,20 @@
-# Use the official Node.js 14 image from the Docker Hub as the base image
+# Use the official Node.js 14 image as base
 FROM node:14
 
-# Set the working directory inside the container to /usr/src/app
+# Set working directory
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json (if available) to the working directory
+# Copy package.json and package-lock.json (if available)
 COPY package*.json ./
 
-# Install the dependencies specified in package.json
+# Install app dependencies
 RUN npm install
 
-# Copy the rest of the application code to the working directory
+# Copy the application source
 COPY . .
 
-# Specify the command to run the application
+# Expose the port the app runs on (optional, helps in Docker)
+EXPOSE 5000
+
+# Start the app
 CMD ["node", "index.js"]
