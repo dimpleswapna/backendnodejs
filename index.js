@@ -10,6 +10,11 @@ connection().catch((err) => {
   process.exit(1);  // Exit the application if the DB connection fails
 });
 
+// Health check route
+app.get('/health', (req, res) => {
+  res.status(200).send('Backend is healthy');
+});
+
 app.use(express.json());
 app.use(cors());
 app.use("/courses", courses);
