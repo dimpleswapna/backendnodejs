@@ -7,27 +7,26 @@ module.exports = async () => {
             useUnifiedTopology: true,
         };
 
-        const useDBAuth = process.env.USE_DB_AUTH || false;
+        // Log to verify if the MONGO_URI environment variable is being passed correctly
+        console.log('MONGO_URI:', process.env.MONGO_URI);
 
-        // If DB authentication is enabled, add credentials to connection parameters
+        // Check if MONGO_URI exists in environment variables
+        if (!process.env.MONGO_URI) {
+            throw new Error("MONGO_URI is not defined in the environment variables.");
+        }
+
+        // If authentication is required, pass credentials from environment variables
+        const useDBAuth = process.env.USE_DB_AUTH || false;
         if (useDBAuth) {
-            if (!process.env.DB_USERNAME || !process.env.DB_PASSWORD) {
-                throw new Error("DB_USERNAME and DB_PASSWORD must be set when USE_DB_AUTH is true.");
-            }
             connectionParams.user = process.env.DB_USERNAME;
             connectionParams.pass = process.env.DB_PASSWORD;
         }
 
-        const mongoURI = process.env.DB_CONN_STR;
-        
-        if (!mongoURI) {
-            throw new Error("DB_CONN_STR is not defined. Please set the database connection string.");
-        }
+        // Establish the MongoDB connection using the MONGO_URI environment variable
+        await mongoose.connect(process.env.MONGO_URI, connectionParams);
 
-        await mongoose.connect(mongoURI, connectionParams);
         console.log("Our Backend API is successfully connected to the Mongo database.");
     } catch (error) {
         console.error("Could not connect to the database.", error);
-        process.exit(1);  // Exit the app if the DB connection fails
     }
 };
